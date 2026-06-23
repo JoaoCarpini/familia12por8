@@ -1,0 +1,125 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.16 0.02 280);
+  --foreground: oklch(0.97 0.01 280);
+  --card: oklch(0.22 0.025 280);
+  --card-foreground: oklch(0.97 0.01 280);
+  --popover: oklch(0.22 0.025 280);
+  --popover-foreground: oklch(0.97 0.01 280);
+  --primary: oklch(0.68 0.21 300);
+  --primary-foreground: oklch(0.16 0.02 280);
+  --secondary: oklch(0.28 0.03 280);
+  --secondary-foreground: oklch(0.97 0.01 280);
+  --muted: oklch(0.26 0.025 280);
+  --muted-foreground: oklch(0.72 0.03 280);
+  --accent: oklch(0.55 0.22 300);
+  --accent-foreground: oklch(0.98 0.01 280);
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 280);
+  --border: oklch(0.32 0.03 280);
+  --input: oklch(0.3 0.03 280);
+  --ring: oklch(0.68 0.21 300);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+}
+
+@layer components {
+  .card {
+    background-color: var(--color-card);
+    border: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    box-shadow: 0 10px 30px -18px color-mix(in oklab, var(--color-primary) 40%, transparent);
+  }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.55rem 0.9rem; border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    color: var(--color-primary-foreground);
+    font-size: 0.875rem; font-weight: 600;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    box-shadow: 0 6px 20px -10px color-mix(in oklab, var(--color-primary) 70%, transparent);
+  }
+  .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.85rem; border-radius: var(--radius-md);
+    background-color: var(--color-secondary);
+    color: var(--color-secondary-foreground);
+    border: 1px solid var(--color-border);
+    font-size: 0.875rem; font-weight: 500;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .btn-secondary:hover { background-color: color-mix(in oklab, var(--color-primary) 15%, var(--color-secondary)); border-color: var(--color-primary); }
+  .btn-danger {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.85rem; border-radius: var(--radius-md);
+    background-color: color-mix(in oklab, var(--color-destructive) 18%, var(--color-secondary));
+    color: var(--color-foreground);
+    border: 1px solid color-mix(in oklab, var(--color-destructive) 40%, transparent);
+    font-size: 0.875rem; font-weight: 500;
+  }
+  .btn-danger:hover { background-color: color-mix(in oklab, var(--color-destructive) 35%, var(--color-secondary)); }
+  .score-input {
+    width: 3rem; text-align: center;
+    background-color: var(--color-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.3rem;
+    color: var(--color-foreground);
+    font-weight: 600;
+    outline: none;
+  }
+  .score-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 30%, transparent); }
+  .row-input {
+    background-color: var(--color-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.6rem;
+    color: var(--color-foreground);
+    outline: none;
+  }
+  .row-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 30%, transparent); }
+  .score-input::-webkit-outer-spin-button,
+  .score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .score-input { -moz-appearance: textfield; }
+}
