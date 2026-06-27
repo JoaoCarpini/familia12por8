@@ -65,11 +65,10 @@ function computePoints(guess: Guess, official: Official) {
   let resultPoints = 0;
   if (pg1 === og1 && pg2 === og2) resultPoints = 3;
   else if (Math.sign(og1 - og2) === Math.sign(pg1 - pg2)) resultPoints = 1;
-  const totalGoals = og1 + og2;
   const officialScorers = parseScorers(official.scorers);
   const guessScorers = parseScorers(guess.scorers);
   let scorerPoints = 0;
-  if (officialScorers.length > 0 && guessScorers.length === totalGoals) {
+  if (officialScorers.length > 0) {
     scorerPoints = computeScorerPoints(guessScorers, officialScorers);
   }
   return { total: resultPoints + scorerPoints, breakdown: { result: resultPoints, scorers: scorerPoints } };
@@ -598,7 +597,6 @@ function Index() {
                       const { total, breakdown } = computePoints(guess, official);
                       const editable = (!guess.locked && !deadlinePassed) || adminMode;
                       const guessScorersCount = parseScorers(guess.scorers).length;
-                      const scorersValid = totalGoals === null || guess.scorers === "" || guessScorersCount === totalGoals;
 
                       return (
                         <tr key={guess.id} className="bg-muted/30">
@@ -637,11 +635,11 @@ function Index() {
                                 onChange={(e) => editable && updateGuessLocal(game.id, guess.id, { scorers: e.target.value })}
                                 onBlur={() => editable && saveGuess(game.id, guess.id)}
                                 placeholder="Ex: Vini Jr, Rodrygo"
-                                className={`row-input w-40 disabled:cursor-not-allowed disabled:opacity-70 ${!scorersValid ? "border-destructive" : ""}`}
+                                className="row-input w-56 disabled:cursor-not-allowed disabled:opacity-70"
                                 disabled={!editable}
                               />
-                              {!scorersValid && totalGoals !== null && (
-                                <span className="text-xs text-destructive">Precisa de {totalGoals} nome{totalGoals !== 1 ? "s" : ""}</span>
+                              {totalGoals !== null && (
+                                <span className="text-xs text-muted-foreground">{guessScorersCount}/{totalGoals} nomes</span>
                               )}
                             </div>
                           </td>
