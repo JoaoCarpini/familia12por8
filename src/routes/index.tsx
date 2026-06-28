@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { Plus, Trash2, Download, Trophy, Lock, Unlock, Check, RefreshCw, PlusCircle, X, Clock, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Download, Trophy, Lock, Unlock, RefreshCw, PlusCircle, X, Clock, RotateCcw } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 import type { PalpiteRow, OficialRow, GameRow, RankingHistoricoRow } from "../lib/supabase";
@@ -84,6 +84,81 @@ function formatDeadline(deadline: string): string {
   return new Date(deadline).toLocaleString("pt-BR", {
     day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
   });
+}
+
+function ScorerTags({
+  value,
+  onChange,
+  editable,
+}: {
+  value: string;
+  onChange: (newValue: string) => void;
+  editable: boolean;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [inputVal, setInputVal] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const tags = value.split(",").map((s) => s.trim()).filter(Boolean);
+
+  const addTag = () => {
+    const name = inputVal.trim();
+    if (!name) { setAdding(false); return; }
+    onChange([...tags, name].join(", "));
+    setInputVal("");
+    setAdding(false);
+  };
+
+  const removeTag = (index: number) => {
+    onChange(tags.filter((_, i) => i !== index).join(", "));
+  };
+
+  useEffect(() => {
+    if (adding && inputRef.current) inputRef.current.focus();
+  }, [adding]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {tags.map((tag, i) => (
+        <span key={i} className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">
+          {tag}
+          {editable && (
+            <button type="button" onClick={() => removeTag(i)} className="text-primary/60 hover:text-primary">
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </span>
+      ))}
+      {tags.length === 0 && !editable && <span className="text-xs text-muted-foreground">—</span>}
+      {editable && !adding && (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-primary/40 px-2 py-0.5 text-xs text-primary/60 hover:border-primary hover:text-primary"
+        >
+          <Plus className="h-3 w-3" /> Artilheiro
+        </button>
+      )}
+      {editable && adding && (
+        <div className="inline-flex items-center gap-1">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputVal}
+            onChange={(e) => setInputVal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); addTag(); }
+              if (e.key === "Escape") { setAdding(false); setInputVal(""); }
+            }}
+            className="row-input w-28 py-0.5 text-xs"
+            placeholder="Nome..."
+          />
+          <button type="button" onClick={addTag} className="text-xs text-primary hover:text-primary/80">✓</button>
+          <button type="button" onClick={() => { setAdding(false); setInputVal(""); }} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Index() {
@@ -232,20 +307,13 @@ function Index() {
     }));
   };
 
-  const confirmGuess = async (gameId: string, id: string) => {
+  const updateGuessScorersDirect = async (gameId: string, id: string, newScorers: string) => {
+    updateGuessLocal(gameId, id, { scorers: newScorers });
     const guess = stateMap[gameId]?.guesses.find((g) => g.id === id);
     if (!guess) return;
-    if (!guess.name.trim() || guess.g1 === "" || guess.g2 === "") {
-      alert("Preencha nome, gols do time 1 e gols do time 2 antes de confirmar.");
-      return;
-    }
-    if (!confirm("Confirmar palpite? Após confirmar, ele não poderá ser editado.")) return;
-    const { error } = await supabase
-      .from("palpites")
-      .update({ name: guess.name, g1: guess.g1, g2: guess.g2, scorers: guess.scorers, locked: true })
-      .eq("id", id);
-    if (error) { alert("Erro ao confirmar: " + error.message); return; }
-    updateGuessLocal(gameId, id, { locked: true });
+    await supabase.from("palpites").update({
+      name: guess.name, g1: guess.g1, g2: guess.g2, scorers: newScorers,
+    }).eq("id", id);
   };
 
   const updateOfficial = async (gameId: string, patch: Partial<Official>) => {
@@ -348,19 +416,19 @@ function Index() {
     for (const gs of Object.values(stateMap)) {
       const { game, official, guesses } = gs;
       const officialDefined = official.g1 !== "" && official.g2 !== "";
-      const aoa: (string | number)[][] = [
+      const aoa: (string | number | null)[][] = [
         [`${game.team1} x ${game.team2} — ${game.date_label}`],
         ["Placar Oficial", officialDefined ? `${official.g1} x ${official.g2}` : "Pendente"],
         ["Artilheiros Oficiais", official.scorers || "—"],
         [],
-        ["Nome", game.team1, game.team2, "Artilheiros Palpite", "Pts Placar", "Pts Artilheiros", "Total"],
+        ["Nome", "Palpite", "Artilheiros", "Pts Placar", "Pts Artilheiros", "Total"],
       ];
       for (const guess of guesses) {
         const { total, breakdown } = computePoints(guess, official);
+        const palpite = guess.g1 !== "" && guess.g2 !== "" ? `${guess.g1} x ${guess.g2}` : "";
         aoa.push([
           guess.name,
-          guess.g1 === "" ? "" : Number(guess.g1),
-          guess.g2 === "" ? "" : Number(guess.g2),
+          palpite,
           guess.scorers || "",
           breakdown.result,
           breakdown.scorers,
@@ -368,7 +436,7 @@ function Index() {
         ]);
       }
       const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws["!cols"] = [{ wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 28 }, { wch: 12 }, { wch: 16 }, { wch: 8 }];
+      ws["!cols"] = [{ wch: 24 }, { wch: 12 }, { wch: 32 }, { wch: 12 }, { wch: 16 }, { wch: 8 }];
       XLSX.utils.book_append_sheet(wb, ws, `${game.team1} x ${game.team2}`.slice(0, 31));
     }
     const rankingAoa: (string | number)[][] = [["Posição", "Nome", "Pontos"]];
@@ -546,16 +614,14 @@ function Index() {
                     />
                   </div>
                   {/* Artilheiros oficiais */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs uppercase tracking-wide text-muted-foreground">
                       Artilheiros{totalGoals !== null ? ` (${totalGoals})` : ""}
                     </span>
-                    <input
-                      type="text" value={official.scorers}
-                      onChange={(e) => adminMode && updateOfficial(game.id, { scorers: e.target.value })}
-                      placeholder={adminMode ? "Ex: Vini Jr, Rodrygo" : "—"}
-                      className="row-input w-44 border-primary/40 bg-primary/10 disabled:opacity-60"
-                      disabled={!adminMode}
+                    <ScorerTags
+                      value={official.scorers}
+                      editable={adminMode}
+                      onChange={(v) => updateOfficial(game.id, { scorers: v })}
                     />
                   </div>
                   {/* Remover jogo — só admin */}
@@ -595,7 +661,7 @@ function Index() {
                     )}
                     {guesses.map((guess) => {
                       const { total, breakdown } = computePoints(guess, official);
-                      const editable = (!guess.locked && !deadlinePassed) || adminMode;
+                      const editable = !deadlinePassed || adminMode;
                       const guessScorersCount = parseScorers(guess.scorers).length;
 
                       return (
@@ -630,13 +696,10 @@ function Index() {
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex flex-col gap-1">
-                              <input
-                                type="text" value={guess.scorers}
-                                onChange={(e) => editable && updateGuessLocal(game.id, guess.id, { scorers: e.target.value })}
-                                onBlur={() => editable && saveGuess(game.id, guess.id)}
-                                placeholder="Ex: Vini Jr, Rodrygo"
-                                className="row-input w-56 disabled:cursor-not-allowed disabled:opacity-70"
-                                disabled={!editable}
+                              <ScorerTags
+                                value={guess.scorers}
+                                editable={editable}
+                                onChange={(v) => updateGuessScorersDirect(game.id, guess.id, v)}
                               />
                               {totalGoals !== null && (
                                 <span className="text-xs text-muted-foreground">{guessScorersCount}/{totalGoals} nomes</span>
@@ -657,18 +720,7 @@ function Index() {
                           </td>
                           <td className="rounded-r-md px-2 py-2">
                             <div className="flex items-center justify-end gap-1">
-                              {!guess.locked && !deadlinePassed ? (
-                                <button onClick={() => confirmGuess(game.id, guess.id)}
-                                  className="grid h-8 w-8 place-items-center rounded-md text-primary hover:bg-primary/15"
-                                  title="Confirmar palpite">
-                                  <Check className="h-4 w-4" />
-                                </button>
-                              ) : (
-                                <span className="grid h-8 w-8 place-items-center text-primary/60" title={deadlinePassed ? "Prazo encerrado" : "Palpite bloqueado"}>
-                                  <Lock className="h-4 w-4" />
-                                </span>
-                              )}
-                              {(adminMode || (!guess.locked && !deadlinePassed)) && (
+                              {(adminMode || !deadlinePassed) && (
                                 <button onClick={() => removeGuess(game.id, guess.id)}
                                   className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/15 hover:text-destructive">
                                   <Trash2 className="h-4 w-4" />
