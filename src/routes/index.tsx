@@ -23,18 +23,32 @@ type GameState = { game: Game; guesses: Guess[]; official: Official };
 const ADMIN_PASSWORD = "familia128";
 
 const INITIAL_GAMES: Game[] = [
-  { id: "esc-bra", team1: "Escócia", team2: "Brasil", date_label: "24/06 19h", position: 0 },
-  { id: "equ-ale", team1: "Equador", team2: "Alemanha", date_label: "25/06 17h", position: 1 },
-  { id: "jap-sue", team1: "Japão", team2: "Suécia", date_label: "25/06 20h", position: 2 },
-  { id: "tun-hol", team1: "Tunísia", team2: "Holanda", date_label: "25/06 20h", position: 3 },
-  { id: "tur-eua", team1: "Turquia", team2: "EUA", date_label: "25/06 23h", position: 4 },
-  { id: "nor-fra", team1: "Noruega", team2: "França", date_label: "26/06 16h", position: 5 },
-  { id: "uru-esp", team1: "Uruguai", team2: "Espanha", date_label: "26/06 21h", position: 6 },
-  { id: "pan-ing", team1: "Panamá", team2: "Inglaterra", date_label: "27/06 18h", position: 7 },
-  { id: "cro-gan", team1: "Croácia", team2: "Gana", date_label: "27/06 18h", position: 8 },
-  { id: "col-por", team1: "Colômbia", team2: "Portugal", date_label: "27/06 20h30", position: 9 },
-  { id: "jor-arg", team1: "Jordânia", team2: "Argentina", date_label: "27/06 23h", position: 10 },
+  { id: "bra-jap", team1: "Brasil", team2: "Japão", date_label: "29/06 14h", position: 0 },
+  { id: "ale-par", team1: "Alemanha", team2: "Paraguai", date_label: "29/06 17h30", position: 1 },
+  { id: "hol-mar", team1: "Holanda", team2: "Marrocos", date_label: "29/06 22h", position: 2 },
+  { id: "nor-maf", team1: "Noruega", team2: "Costa do Marfim", date_label: "30/06 14h", position: 3 },
+  { id: "fra-sue", team1: "França", team2: "Suécia", date_label: "30/06 18h", position: 4 },
+  { id: "ing-con", team1: "Inglaterra", team2: "RD Congo", date_label: "01/07 13h", position: 5 },
+  { id: "bel-sen", team1: "Bélgica", team2: "Senegal", date_label: "01/07 17h", position: 6 },
+  { id: "esp-aut", team1: "Espanha", team2: "Áustria", date_label: "02/07 16h", position: 7 },
+  { id: "por-cro", team1: "Portugal", team2: "Croácia", date_label: "02/07 20h", position: 8 },
+  { id: "arg-cab", team1: "Argentina", team2: "Cabo Verde", date_label: "03/07 19h", position: 9 },
+  { id: "col-gan", team1: "Colômbia", team2: "Gana", date_label: "03/07 22h30", position: 10 },
 ];
+
+const INITIAL_DEADLINES: Record<string, string> = {
+  "bra-jap": "2026-06-29T14:00:00-03:00",
+  "ale-par": "2026-06-29T17:30:00-03:00",
+  "hol-mar": "2026-06-29T22:00:00-03:00",
+  "nor-maf": "2026-06-30T14:00:00-03:00",
+  "fra-sue": "2026-06-30T18:00:00-03:00",
+  "ing-con": "2026-07-01T13:00:00-03:00",
+  "bel-sen": "2026-07-01T17:00:00-03:00",
+  "esp-aut": "2026-07-02T16:00:00-03:00",
+  "por-cro": "2026-07-02T20:00:00-03:00",
+  "arg-cab": "2026-07-03T19:00:00-03:00",
+  "col-gan": "2026-07-03T22:30:00-03:00",
+};
 
 const emptyOfficial = (): Official => ({ g1: "", g2: "", scorers: "", deadline: "" });
 
@@ -195,7 +209,7 @@ function Index() {
         supabase.from("ranking_historico").select("*"),
       ]);
 
-      // Se não tem jogos no banco ainda, insere os iniciais
+      // Se não tem jogos no banco ainda, insere os iniciais e semeia os deadlines
       let gamesList: Game[] = [];
       if (!gamesData || gamesData.length === 0) {
         const { data: inserted } = await supabase
@@ -203,6 +217,15 @@ function Index() {
           .insert(INITIAL_GAMES)
           .select();
         gamesList = (inserted as GameRow[]) ?? INITIAL_GAMES;
+        for (const game of gamesList) {
+          const deadline = INITIAL_DEADLINES[game.id];
+          if (deadline) {
+            await supabase.from("oficial").upsert(
+              { game_id: game.id, g1: "", g2: "", scorers: "", deadline },
+              { onConflict: "game_id" }
+            );
+          }
+        }
       } else {
         gamesList = gamesData as GameRow[];
       }
@@ -601,17 +624,25 @@ function Index() {
                   {/* Placar oficial */}
                   <div className="flex items-center gap-2">
                     <span className="text-xs uppercase tracking-wide text-muted-foreground">Oficial</span>
-                    <input
-                      type="number" min={0} inputMode="numeric" value={official.g1}
-                      onChange={(e) => adminMode && updateOfficial(game.id, { g1: e.target.value })}
-                      className="score-input border-primary/40 bg-primary/10" disabled={!adminMode}
-                    />
-                    <span className="text-muted-foreground">x</span>
-                    <input
-                      type="number" min={0} inputMode="numeric" value={official.g2}
-                      onChange={(e) => adminMode && updateOfficial(game.id, { g2: e.target.value })}
-                      className="score-input border-primary/40 bg-primary/10" disabled={!adminMode}
-                    />
+                    {adminMode ? (
+                      <>
+                        <input
+                          type="number" min={0} inputMode="numeric" value={official.g1}
+                          onChange={(e) => updateOfficial(game.id, { g1: e.target.value })}
+                          className="score-input border-primary/40 bg-primary/10"
+                        />
+                        <span className="text-muted-foreground">x</span>
+                        <input
+                          type="number" min={0} inputMode="numeric" value={official.g2}
+                          onChange={(e) => updateOfficial(game.id, { g2: e.target.value })}
+                          className="score-input border-primary/40 bg-primary/10"
+                        />
+                      </>
+                    ) : official.g1 !== "" && official.g2 !== "" ? (
+                      <span className="font-semibold">{official.g1} x {official.g2}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Pendente</span>
+                    )}
                   </div>
                   {/* Artilheiros oficiais */}
                   <div className="flex flex-wrap items-center gap-2">
